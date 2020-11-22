@@ -55,7 +55,7 @@ def party_bar(df, thresh, city):
 
     ax.set_ylabel('Votes percent')
     ax.set_xlabel('Parties Names')
-    ax.set_title('Votes percent per party 2019')
+    ax.set_title('Votes percent per party')
     ax.set_xticks(np.arange(n))
     ax.set_xticklabels(rev_names)
     ax.legend((all_bar[0], city_bar[0]), ('Israel', city[::-1]))
@@ -155,8 +155,10 @@ def read_election_results(year, analysis, run_in_colab=False):
         df = df_raw.drop('סמל ועדה', axis=1)  # new column added in Sep 2019
     else:  # 2019a
         df = df_raw
-    if year == '2020':
+    if year == '2020' and analysis == "city":
         df = df.drop('Unnamed: 37', axis=1)
+    if year == '2020' and analysis == "ballot":
+        df = df.drop('Unnamed: 41', axis=1)
 
     df = df[df.index != 'מעטפות חיצוניות']
     if analysis == 'city':
@@ -191,3 +193,16 @@ def regression_turnout_correction(df, turnout):
     q = q / q.sum()  # Normalize
     return p, q, model  # alpha_inv
 
+# Change dataframe to include unique index for each ballot. From Harel Kain
+def adapt_df(df, parties, include_no_vote=False, ballot_number_field_name=None):
+    df['ballot_id'] = df['סמל ישוב'].astype(str) + '__' + df[ballot_number_field_name].astype(str)
+    df_yeshuv = df.index  # new: keep yeshuv
+    df = df.set_index('ballot_id')
+    eligible_voters = df['בזב']
+    total_voters = df['מצביעים']
+    df = df[parties]
+    df['ישוב'] = df_yeshuv  # new: keep yeshuv
+    df = df.reindex(sorted(df.columns), axis=1)
+    if include_no_vote:
+        df['לא הצביע'] = eligible_voters - total_voters
+    return df
